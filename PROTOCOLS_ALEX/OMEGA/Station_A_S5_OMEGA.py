@@ -13,9 +13,13 @@ metadata = {
     'apiLevel': '2.0'
 }
 
-NUM_SAMPLES     = 16
+NUM_SAMPLES     = 23
 SAMPLE_VOLUME   = 200
+TNA_VOLUME      = 240
+ISO_VOLUME      = 280
+BEADS_VOLUME    = 10
 TIP_TRACK       = False
+recycle_tips    = False
 
 def run(ctx: protocol_api.ProtocolContext):
     #Change light to red
@@ -26,16 +30,17 @@ def run(ctx: protocol_api.ProtocolContext):
         ctx.load_labware(
             'opentrons_24_tuberack_generic_2ml_screwcap', slot,
             'source tuberack ' + str(i+1))
-        for i, slot in enumerate(['10', '7', '4', '1'])
+        for i, slot in enumerate(['4', '1', '6', '3'])
     ]
     dest_plate = ctx.load_labware(
         'usascientific_96_wellplate_2.4ml_deep', '2',
         '96-deepwell sample plate')
-    # reagent_rack = ctx.load_labware('opentrons_6_tuberack_falcon_50ml_conical',
-    #                                 '5', 'lysis buffer tuberack')
+    reagent_rack = ctx.load_labware('opentrons_6_tuberack_falcon_50ml_conical',
+                                     '5', 'lysis buffer tuberack')
+
     tipracks1000 = [ctx.load_labware('opentrons_96_filtertiprack_1000ul', slot,
                                      '1000µl filter tiprack')
-                    for slot in ['3', '5', '6', '8', '9', '11']]
+                    for slot in ['8']]
 
     # load pipette
     p1000 = ctx.load_instrument(
@@ -75,19 +80,69 @@ def run(ctx: protocol_api.ProtocolContext):
         pip.pick_up_tip(tip_log['tips'][pip][tip_log['count'][pip]])
         tip_log['count'][pip] += 1
 
-    # lys_buff = reagent_rack.wells()[:2]
-    # heights = {tube: 60 for tube in lys_buff}
-    # radius = (lys_buff[0].diameter)/2
-    # min_h = 5
-    #
-    # def h_track(tube, vol):
-    #     nonlocal heights
-    #     dh = vol/(math.pi*(radius**2))
-    #     if heights[tube] - dh > min_h:
-    #         heights[tube] = heights[tube] - dh
-    #     else:
-    #         heights[tube] = 5
-    #     return tube.bottom(heights[tube])
+    lys_buff = reagent_rack.wells()[:1]
+    heights = {tube: 60 for tube in lys_buff}
+    radius = (lys_buff[0].diameter)/2
+    min_h = 16
+
+    def calc_height(tube, vol):
+        nonlocal heights
+        dh = vol / (math.pi * (radius**2))
+        if heights[tube] - dh > min_h:
+            heights[tube] = heights[tube] - dh
+        else:
+            heights[tube] = 1
+        return tube.bottom(heights[tube])
+
+    def move_vol_multi(pipet, reagent, source, dest, vol, x_offset, pickup_height, rinse, wait_time, blow_out):
+        # Rinse before aspirating
+        if rinse == True:
+            #pipet.aspirate(air_gap_vol_top, location = source.top(z = -5), rate = reagent.flow_rate_aspirate) #air gap
+            custom_mix(pipet, reagent, location = source, vol = vol, rounds = 10, blow_out = False, mix_height = 0)
+            #pipet.dispense(air_gap_vol_top, location = source.top(z = -5), rate = reagent.flow_rate_dispense)
+
+        # SOURCE
+        if reagent.air_gap_vol_top != 0: #If there is air_gap_vol, switch pipette to slow speed
+            pipet.move_to(source.top(z = 0))
+            pipet.air_gap(reagent.air_gap_vol_top) #air gap
+            #pipet.aspirate(reagent.air_gap_vol_top, source.top(z = -5), rate = reagent.flow_rate_aspirate) #air gap
+
+        s = source.bottom(pickup_height).move(Point(x = x_offset))
+        pipet.aspirate(vol, s) # aspirate liquid
+
+        if reagent.air_gap_vol_bottom != 0: #If there is air_gap_vol, switch pipette to slow speed
+            pipet.move_to(source.top(z = 0))
+            pipet.air_gap(reagent.air_gap_vol_bottom) #air gap
+            #pipet.aspirate(air_gap_vol_bottom, source.top(z = -5), rate = reagent.flow_rate_aspirate) #air gap
+
+        if wait_time != 0:
+            ctx.delay(seconds=wait_time, msg='Waiting for ' + str(wait_time) + ' seconds.')
+
+        # GO TO DESTINATION
+        pipet.dispense(vol - reagent.disposal_volume + reagent.air_gap_vol_bottom, dest.top(z = -5), rate = reagent.flow_rate_dispense)
+
+        if wait_time != 0:
+            ctx.delay(seconds=wait_time, msg='Waiting for ' + str(wait_time) + ' seconds.')
+
+        if reagent.air_gap_vol_top != 0:
+            pipet.dispense(reagent.air_gap_vol_top, dest.top(z = 0), rate = reagent.flow_rate_dispense)
+
+        if blow_out == True:
+            pipet.blow_out(dest.top(z = 0))
+
+    # transfer TNA
+    pick_up(p1000)
+    source = lys_buff[0]
+    for i, d in enumerate(dests):
+        p1000.transfer(TNA_VOLUME + ISO_VOLUME + BEADS_VOLUME, source.bottom(1), d.bottom(2),
+                      new_tip='never')
+        p1000.mix(2, SAMPLE_VOLUME, d.bottom(2))
+        p1000.blow_out(d.top(-5)) # Blow out carried out at fixed arbitrary heigth
+
+    if recycle_tips == True:
+        p1000.return_tip()
+    else:
+        p1000.drop_tip(home_after=False)
 
     # transfer samples
     for s, d in zip(sources, dests):
@@ -95,9 +150,12 @@ def run(ctx: protocol_api.ProtocolContext):
         #print(s)
         if not p1000.hw_pipette['has_tip']:
             pick_up(p1000)
-        p1000.transfer(SAMPLE_VOLUME, s.bottom(0.5), d.bottom(5), new_tip='never')
-        p1000.aspirate(100, d.top())
-        p1000.drop_tip(home_after = False)
+        #p1000.transfer(SAMPLE_VOLUME, s.bottom(0.5), d.bottom(5), new_tip='never')
+        #p1000.aspirate(100, d.top())
+        if recycle_tips == True:
+            p1000.return_tip()
+        else:
+            p1000.drop_tip(home_after=False)
 
     # track final used tip
     if not ctx.is_simulating():

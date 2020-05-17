@@ -19,15 +19,14 @@ metadata = {
     'description': 'Protocol for RNA extraction'
 }
 
-NUM_SAMPLES = 24
+NUM_SAMPLES = 8
 sample_volume = 150 # Sample volume received in station A
 set_temp_on = False # Do you want to start temperature module?
-recycle_tip = False # Do you want to recycle tips? It shoud only be set True for testing
 
 #mag_height = 11 # Height needed for NUNC deepwell in magnetic deck
 mag_height = 14 # Height needed for NEST deepwell in magnetic deck
 temperature = 23
-
+recycle_tip = False
 
 L_deepwell = 8 # Deepwell lenght (NEST deepwell)
 #D_deepwell = 8.35 # Deepwell diameter (NUNC deepwell)
@@ -41,12 +40,13 @@ def run(ctx: protocol_api.ProtocolContext):
     #Change light to red
     gpio.set_button_light(1,0,0)
 
-    ctx.comment('Actual used columns: ' + str(num_cols))
+    ctx.comment('Actual used columns: '+str(num_cols))
     STEP = 0
     STEPS = { #Dictionary with STEP activation, description, and times
             1:{'Execute': False, 'description': 'Mix beads'},# REMOVE
-            2:{'Execute': False, 'description': 'Transfer lysis'},#
-            3:{'Execute': False, 'description': 'Wait with magnet OFF', 'wait_time': 300}, #300
+            2:{'Execute': True, 'description': 'Transfer lysis'},#
+            #3:{'Execute': True, 'description': 'Transfer binding beads'},#
+            3:{'Execute': False, 'description': 'Wait with magnet OFF', 'wait_time': 600}, #300
             4:{'Execute': True, 'description': 'Incubate wait with magnet ON', 'wait_time': 300}, #300
             5:{'Execute': True, 'description': 'Remove supernatant'},#
             6:{'Execute': True, 'description': 'Switch off magnet'},#
@@ -61,7 +61,7 @@ def run(ctx: protocol_api.ProtocolContext):
             15:{'Execute': False, 'description': 'Add SPR/WB2'},#
             16:{'Execute': False, 'description': 'Incubate wait with magnet ON', 'wait_time': 300},#300
             17:{'Execute': False, 'description': 'Remove supernatant'},#
-            18:{'Execute': True, 'description': 'Allow to dry', 'wait_time': 300},#900
+            18:{'Execute': True, 'description': 'Allow to dry', 'wait_time': 900},#900
             19:{'Execute': True, 'description': 'Switch off magnet'},#
             20:{'Execute': True, 'description': 'Add water'},#
             21:{'Execute': True, 'description': 'Wait with magnet OFF', 'wait_time': 300},#600
@@ -103,8 +103,8 @@ def run(ctx: protocol_api.ProtocolContext):
     Lysis = Reagent(name = 'Lysis',
                     flow_rate_aspirate = 3, # Original = 0.5
                     flow_rate_dispense = 3, # Original = 1
-                    flow_rate_aspirate_mix = 15, # Liquid density very high, needs slow aspiration
-                    flow_rate_dispense_mix = 25, # Liquid density very high, needs slow dispensation
+                    flow_rate_aspirate_mix = 15, # Original = 1.5
+                    flow_rate_dispense_mix = 25,
                     air_gap_vol_bottom = 5,
                     air_gap_vol_top = 0,
                     disposal_volume = 1,
@@ -213,8 +213,8 @@ def run(ctx: protocol_api.ProtocolContext):
     ctx.comment(' ')
     ctx.comment('Lysis: ' + str(Lysis.num_wells) + ' wells from well 1 in reservoir 1 with volume ' + str(Lysis.vol_well_original) + ' uL each one')
     ctx.comment('WH1: ' + str(VHB.num_wells) + ' wells from well 5 in reservoir 1 with volume ' + str(VHB.vol_well_original) + ' uL each one')
-    ctx.comment('WH2: ' + str(SPR.num_wells) + ' wells from well 1 in reservoir 1 with volume ' + str(SPR.vol_well_original) + ' uL each one')
-    ctx.comment('Water: ' + str(Water.num_wells) + ' wells from well 12 in reservoir 2 with volume ' + str(Water.vol_well_original) + ' uL each one')
+    ctx.comment('WH2: ' + str(SPR.num_wells) + ' wells from well 9 in reservoir 1 with volume ' + str(SPR.vol_well_original) + ' uL each one')
+    ctx.comment('Water: ' + str(Water.num_wells) + ' wells from well 1 in reservoir 2 with volume ' + str(Water.vol_well_original) + ' uL each one')
     ctx.comment('###############################################')
     ctx.comment(' ')
 
@@ -227,13 +227,13 @@ def run(ctx: protocol_api.ProtocolContext):
         '''
         if mix_height == 0:
             mix_height = 2
-        pipet.aspirate(1, location = location.bottom(z = mix_height + 4), rate = reagent.flow_rate_aspirate_mix)
+        pipet.aspirate(1, location = location.bottom(z = mix_height), rate = reagent.flow_rate_aspirate_mix)
         for _ in range(rounds):
-            pipet.aspirate(vol, location = location.bottom(z = mix_height + 4), rate = reagent.flow_rate_aspirate_mix)
-            pipet.dispense(vol, location = location.bottom(z = mix_height + 9).move(Point(x = offset)), rate = reagent.flow_rate_dispense_mix)
-        pipet.dispense(1, location = location.bottom(z = mix_height + 4), rate = reagent.flow_rate_dispense_mix)
+            pipet.aspirate(vol, location = location.bottom(z = mix_height), rate = reagent.flow_rate_aspirate_mix)
+            pipet.dispense(vol, location = location.bottom(z = mix_height + 5).move(Point(x = offset)), rate = reagent.flow_rate_dispense_mix)
+        pipet.dispense(1, location = location.bottom(z = mix_height), rate = reagent.flow_rate_dispense_mix)
         if blow_out == True:
-            pipet.blow_out(location.top(z = 2)) # Blow out
+            pipet.blow_out(location.top(z = -2)) # Blow out
 
     def calc_height(reagent, cross_section_area, aspirate_volume):
         nonlocal ctx
@@ -264,11 +264,11 @@ def run(ctx: protocol_api.ProtocolContext):
             col_change = False
         return height, col_change
 
-    def move_vol_multi(pipet, reagent, source, dest, vol, x_offset_source, x_offset_dest, pickup_height, rinse, avoid_droplet, wait_time, blow_out):
+    def move_vol_multi(pipet, reagent, source, dest, vol, x_offset_source, x_offset_dest, pickup_height, rinse, wait_time, blow_out):
         # Rinse before aspirating
         if rinse == True:
             #pipet.aspirate(air_gap_vol_top, location = source.top(z = -5), rate = reagent.flow_rate_aspirate) #air gap
-            custom_mix(pipet, reagent, location = source, vol = vol, rounds = 20, blow_out = False, mix_height = 3, offset = 0)
+            custom_mix(pipet, reagent, location = source, vol = vol, rounds = 20, blow_out = False, mix_height = 0, offset = 0)
             #pipet.dispense(air_gap_vol_top, location = source.top(z = -5), rate = reagent.flow_rate_dispense)
 
         # SOURCE
@@ -288,26 +288,22 @@ def run(ctx: protocol_api.ProtocolContext):
         if wait_time != 0:
             ctx.delay(seconds=wait_time, msg='Waiting for ' + str(wait_time) + ' seconds.')
 
-        if avoid_droplet == True: # Touch the liquid surface to avoid droplets
-            ctx.comment("Moving to: " + str(pickup_height))
-            pipet.move_to(source.bottom(pickup_height))
-
         # GO TO DESTINATION
-        d = dest.top(z = -1).move(Point(x = x_offset_dest))
+        d = dest.top(z = -5).move(Point(x = x_offset_dest))
         pipet.dispense(vol - reagent.disposal_volume + reagent.air_gap_vol_bottom, d, rate = reagent.flow_rate_dispense)
 
         if wait_time != 0:
             ctx.delay(seconds=wait_time, msg='Waiting for ' + str(wait_time) + ' seconds.')
 
         if reagent.air_gap_vol_top != 0:
-            pipet.dispense(reagent.air_gap_vol_top, dest.top(z = 4), rate = reagent.flow_rate_dispense)
+            pipet.dispense(reagent.air_gap_vol_top, dest.top(z = 0), rate = reagent.flow_rate_dispense)
 
         if blow_out == True:
-            pipet.blow_out(dest.top(z = 4))
+            pipet.blow_out(dest.top(z = 0))
 
-        if reagent.air_gap_vol_bottom != 0:
-            pipet.move_to(dest.top(z = 4))
-            pipet.air_gap(reagent.air_gap_vol_bottom) #air gap
+        #if reagent.air_gap_vol_bottom != 0:
+        #    pipet.move_to(dest.top(z = 0))
+        #    pipet.air_gap(reagent.air_gap_vol_bottom) #air gap
             #pipet.aspirate(air_gap_vol_bottom, dest.top(z = 0),rate = reagent.flow_rate_aspirate) #air gap
 
     ##########
@@ -327,7 +323,7 @@ def run(ctx: protocol_api.ProtocolContext):
         if col%2 == 0:
             side = -1 # left
         else:
-            side = 1 # right
+            side = 1
         return side
 
 ####################################
@@ -353,7 +349,6 @@ def run(ctx: protocol_api.ProtocolContext):
     magdeck = ctx.load_module('magdeck', '4')
     #deepwell_plate = magdeck.load_labware('nest_96_wellplate_2000ul', 'NEST 96 Deep Well Plate 2 mL') # Change to NEST deepwell plate
     deepwell_plate = magdeck.load_labware('nest_96_wellplate_2000ul', 'NEST 96 Well Plate 2000 µL') # Change to NEST deepwell plate.
-    magdeck.disengage()
 
 ####################################
     ######## Waste reservoir
@@ -398,6 +393,8 @@ def run(ctx: protocol_api.ProtocolContext):
         }
         #, p1000: len(tips1000)*96}
 
+    # Disengage magnet
+    magdeck.disengage()
 ###############################################################################
 
     ###############################################################################
@@ -465,14 +462,14 @@ def run(ctx: protocol_api.ProtocolContext):
                 if change_col == True: #If we switch column because there is not enough volume left in current reservoir column we mix new column
                     ctx.comment('Mixing new reservoir column: ' + str(Lysis.col))
                     custom_mix(m300, Lysis, Lysis.reagent_reservoir[Lysis.col],
-                    vol = 180, rounds = 10, blow_out = False, mix_height = 3, offset = 0)
+                    vol = 180, rounds = 10, blow_out = False, mix_height = 0, offset = 0)
                 ctx.comment('Aspirate from reservoir column: ' + str(Lysis.col))
                 ctx.comment('Pickup height is ' + str(pickup_height))
                 #if j!=0:
                 #    rinse = False
                 move_vol_multi(m300, reagent = Lysis, source = Lysis.reagent_reservoir[Lysis.col],
                 dest = work_destinations[i], vol = transfer_vol, x_offset_source = x_offset_source, x_offset_dest = x_offset_dest,
-                pickup_height = pickup_height, rinse = rinse, avoid_droplet = False, wait_time = 2, blow_out = False)
+                pickup_height = pickup_height, rinse = rinse, wait_time = 2, blow_out = False)
                 #m300.move_to(work_destinations[i].top(0))
                 #m300.air_gap(Lysis.air_gap_vol_bottom) #air gap
             #m300.aspirate(air_gap_vol_bottom, work_destinations[i].top(10), rate = Lysis.flow_rate_aspirate) #air gap
@@ -480,8 +477,8 @@ def run(ctx: protocol_api.ProtocolContext):
             ctx.comment(' ')
             ctx.comment('Mixing sample ')
             custom_mix(m300, Lysis, location = work_destinations[i], vol = 180,
-            rounds = 20, blow_out = False, mix_height = 3, offset = 0)
-            m300.move_to(work_destinations[i].top(4))
+            rounds = 20, blow_out = False, mix_height = 0, offset = 0)
+            m300.move_to(work_destinations[i].top(0))
             m300.air_gap(Lysis.air_gap_vol_bottom) #air gap
             if recycle_tip == True:
                 m300.return_tip()
@@ -577,7 +574,7 @@ def run(ctx: protocol_api.ProtocolContext):
                 ctx.comment('Pickup height is ' + str(pickup_height) +' (fixed)')
                 move_vol_multi(m300, reagent = Elution, source = work_destinations[i],
                 dest = waste, vol = transfer_vol, x_offset_source = x_offset_source, x_offset_dest = x_offset_dest,
-                pickup_height = pickup_height, rinse = False, avoid_droplet = False, wait_time = 2, blow_out = False)
+                pickup_height = pickup_height, rinse = False, wait_time = 2, blow_out = False)
                 #m300.air_gap(Elution.air_gap_vol_bottom) #air gap
             if recycle_tip == True:
                 m300.return_tip()
@@ -655,13 +652,13 @@ def run(ctx: protocol_api.ProtocolContext):
                 #    rinse = False
                 move_vol_multi(m300, reagent = VHB, source = VHB.reagent_reservoir[VHB.col],
                 dest = work_destinations[i], vol = transfer_vol, x_offset_source = x_offset_source, x_offset_dest = x_offset_dest,
-                pickup_height = pickup_height, rinse = rinse, avoid_droplet = False, wait_time = 2, blow_out = False)
+                pickup_height = pickup_height, rinse = rinse, wait_time = 2, blow_out = False)
                 #m300.move_to(work_destinations[i].top(0))
                 #m300.air_gap(VHB.air_gap_vol_bottom) #air gap
                 #m300.aspirate(air_gap_vol_bottom, work_destinations[i].top(10), rate = VHB.flow_rate_aspirate) #air gap
             custom_mix(m300, VHB, location = work_destinations[i], vol = 180,
-                rounds = 20, blow_out = False, mix_height = 3, offset = x_offset_dest - 1)
-            m300.move_to(work_destinations[i].top(4))
+                rounds = 20, blow_out = False, mix_height = 0, offset = x_offset_dest)
+            m300.move_to(work_destinations[i].top(0))
             m300.air_gap(VHB.air_gap_vol_bottom) #air gap
             #m300.aspirate(air_gap_vol_bottom, work_destinations[i].top(10), rate = VHB.flow_rate_aspirate) #air gap
             if recycle_tip == True:
@@ -735,7 +732,7 @@ def run(ctx: protocol_api.ProtocolContext):
                 ctx.comment('Pickup height is ' + str(pickup_height) +' (fixed)')
                 move_vol_multi(m300, reagent = Elution, source = work_destinations[i],
                 dest = waste, vol = transfer_vol, x_offset_source = x_offset_source, x_offset_dest = x_offset_dest,
-                pickup_height = pickup_height, rinse = False, avoid_droplet = False, wait_time = 2, blow_out = False)
+                pickup_height = pickup_height, rinse = False, wait_time = 2, blow_out = False)
                 #m300.air_gap(Elution.air_gap_vol_bottom) #air gap
             if recycle_tip == True:
                 m300.return_tip()
@@ -813,13 +810,13 @@ def run(ctx: protocol_api.ProtocolContext):
                 #    rinse = False
                 move_vol_multi(m300, reagent = SPR, source = SPR.reagent_reservoir[SPR.col],
                 dest = work_destinations[i], vol = transfer_vol, x_offset_source = x_offset_source, x_offset_dest = x_offset_dest,
-                pickup_height = pickup_height, rinse = rinse, avoid_droplet = False, wait_time = 2, blow_out = False)
+                pickup_height = pickup_height, rinse = rinse, wait_time = 2, blow_out = False)
                 #m300.move_to(work_destinations[i].top(0))
                 #m300.air_gap(SPR.air_gap_vol_bottom) #air gap
                 #m300.aspirate(air_gap_vol_bottom, work_destinations[i].top(10), rate = SPR.flow_rate_aspirate) #air gap
             custom_mix(m300, VHB, location = work_destinations[i], vol = 180,
-                rounds = 20, blow_out = False, mix_height = 3, offset = x_offset_dest)
-            m300.move_to(work_destinations[i].top(4))
+                rounds = 20, blow_out = False, mix_height = 0, offset = x_offset_dest)
+            m300.move_to(work_destinations[i].top(0))
             m300.air_gap(SPR.air_gap_vol_bottom) #air gap
             #m300.aspirate(air_gap_vol_bottom, work_destinations[i].top(10), rate = SPR.flow_rate_aspirate) #air gap
             if recycle_tip == True:
@@ -893,7 +890,7 @@ def run(ctx: protocol_api.ProtocolContext):
                 ctx.comment('Pickup height is ' + str(pickup_height) +' (fixed)')
                 move_vol_multi(m300, reagent = Elution, source = work_destinations[i],
                 dest = waste, vol = transfer_vol, x_offset_source = x_offset_source, x_offset_dest = x_offset_dest,
-                pickup_height = pickup_height, rinse = False, avoid_droplet = False, wait_time = 2, blow_out = False)
+                pickup_height = pickup_height, rinse = False, wait_time = 2, blow_out = False)
                 #m300.air_gap(Elution.air_gap_vol_bottom) #air gap
             if recycle_tip == True:
                 m300.return_tip()
@@ -970,11 +967,11 @@ def run(ctx: protocol_api.ProtocolContext):
                 #    rinse = False
                 move_vol_multi(m300, reagent = SPR, source = SPR.reagent_reservoir[SPR.col],
                 dest = work_destinations[i], vol = transfer_vol, x_offset_source = x_offset_source, x_offset_dest = x_offset_dest,
-                pickup_height = pickup_height, rinse = rinse, avoid_droplet = False, wait_time = 2, blow_out = False)
+                pickup_height = pickup_height, rinse = rinse, wait_time = 2, blow_out = False)
                 #m300.aspirate(SPR.air_gap_vol_bottom, work_destinations[i].top(10), rate = SPR.flow_rate_aspirate) #air gap
             custom_mix(m300, VHB, location = work_destinations[i], vol = 180,
-                rounds = 20, blow_out = False, mix_height = 3, offset = x_offset_dest)
-            m300.move_to(work_destinations[i].top(4))
+                rounds = 20, blow_out = False, mix_height = 0, offset = x_offset_dest)
+            m300.move_to(work_destinations[i].top(0))
             m300.air_gap(SPR.air_gap_vol_bottom) #air gap
             #m300.aspirate(air_gap_vol_bottom, work_destinations[i].top(10), rate = SPR.flow_rate_aspirate) #air gap
             if recycle_tip == True:
@@ -1048,7 +1045,7 @@ def run(ctx: protocol_api.ProtocolContext):
                 ctx.comment('Pickup height is ' + str(pickup_height) +' (fixed)')
                 move_vol_multi(m300, reagent = Elution, source = work_destinations[i],
                 dest = waste, vol = transfer_vol, x_offset_source = x_offset_source, x_offset_dest = x_offset_dest,
-                pickup_height = pickup_height, rinse = False, avoid_droplet = False, wait_time = 2, blow_out = False)
+                pickup_height = pickup_height, rinse = False, wait_time = 2, blow_out = False)
                 #m300.move_to(waste.top(0))
                 #m300.air_gap(Elution.air_gap_vol_bottom) #air gap
             if recycle_tip == True:
@@ -1059,8 +1056,8 @@ def run(ctx: protocol_api.ProtocolContext):
         end = datetime.now()
         time_taken = (end - start)
         ctx.comment('Step ' + str(STEP) + ': ' + STEPS[STEP]['description'] + ' took ' + str(time_taken))
-        STEPS[STEP]['Time:'] = str(time_taken)
-        ctx.comment('Used tips in total: ' + str(tip_track['counts'][m300]))
+        STEPS[STEP]['Time:']=str(time_taken)
+        ctx.comment('Used tips in total: '+str(tip_track['counts'][m300]))
         ###############################################################################
         # STEP 17 REMOVE SUPERNATANT
         ########
@@ -1081,8 +1078,8 @@ def run(ctx: protocol_api.ProtocolContext):
         end = datetime.now()
         time_taken = (end - start)
         ctx.comment('Step ' + str(STEP) + ': ' + STEPS[STEP]['description'] + ' took ' + str(time_taken))
-        STEPS[STEP]['Time:'] = str(time_taken)
-        ctx.comment('Used tips in total: ' + str(tip_track['counts'][m300]))
+        STEPS[STEP]['Time:']=str(time_taken)
+        ctx.comment('Used tips in total: '+str(tip_track['counts'][m300]))
         ###############################################################################
         # STEP 18 ALLOW DRY
         ########
@@ -1105,8 +1102,8 @@ def run(ctx: protocol_api.ProtocolContext):
         end = datetime.now()
         time_taken = (end - start)
         ctx.comment('Step ' + str(STEP) + ': ' + STEPS[STEP]['description'] + ' took ' + str(time_taken))
-        STEPS[STEP]['Time:'] = str(time_taken)
-        ctx.comment('Used tips in total: ' + str(tip_track['counts'][m300]))
+        STEPS[STEP]['Time:']=str(time_taken)
+        ctx.comment('Used tips in total: '+str(tip_track['counts'][m300]))
         ###############################################################################
         # STEP 19 MAGNET OFF
         ########
@@ -1144,11 +1141,9 @@ def run(ctx: protocol_api.ProtocolContext):
                 [pickup_height, change_col] = calc_height(Water, multi_well_rack_area, transfer_vol*8)
                 ctx.comment('Aspirate from Reservoir column: ' + str(Water.col))
                 ctx.comment('Pickup height is ' + str(pickup_height))
-
                 move_vol_multi(m300, reagent = Water, source = Water.reagent_reservoir,
                 dest = work_destinations[i], vol = transfer_vol, x_offset_source = x_offset_source, x_offset_dest = x_offset_dest,
-                pickup_height = pickup_height, rinse = False, avoid_droplet = False, wait_time = 0, blow_out = False)
-
+                pickup_height = pickup_height, rinse = False, wait_time = 0, blow_out = False)
                 #m300.move_to(work_destinations[i].top(0))
                 #m300.air_gap(Water.air_gap_vol_bottom) #air gap
                 #m300.aspirate(air_gap_vol_bottom, work_destinations[i].top(10), rate = Water.flow_rate_aspirate) #air gap
@@ -1156,8 +1151,8 @@ def run(ctx: protocol_api.ProtocolContext):
             ctx.comment('Mixing sample with Water')
             #Mixing
             custom_mix(m300, Elution, work_destinations[i], vol = 40, rounds = 20,
-            blow_out = False, mix_height = 3, offset = x_offset_dest)
-            m300.move_to(work_destinations[i].top(4))
+            blow_out = False, mix_height = 0, offset = x_offset_dest)
+            m300.move_to(work_destinations[i].top(0))
             m300.air_gap(Water.air_gap_vol_bottom) #air gap
             if recycle_tip == True:
                 m300.return_tip()
@@ -1238,7 +1233,7 @@ def run(ctx: protocol_api.ProtocolContext):
         x_offset_rs = 2
         for i in range(num_cols):
             x_offset_source = find_side(i) * x_offset_rs
-            x_offset_dest   = find_side(i) * x_offset_rs
+            x_offset_dest   = (find_side(i) * x_offset_rs)
             if not m300.hw_pipette['has_tip']:
                 pick_up(m300)
             for transfer_vol in elution_vol:
@@ -1246,11 +1241,9 @@ def run(ctx: protocol_api.ProtocolContext):
                 pickup_height = 1
                 ctx.comment('Aspirate from deep well column: ' + str(i+1))
                 ctx.comment('Pickup height is ' + str(pickup_height) +' (fixed)')
-
                 move_vol_multi(m300, reagent = Elution, source = work_destinations[i],
                 dest = final_destinations[i], vol = transfer_vol, x_offset_source = x_offset_source, x_offset_dest = x_offset_dest,
-                pickup_height = pickup_height, rinse = False, avoid_droplet = False, wait_time = 2, blow_out = False)
-
+                pickup_height = pickup_height, rinse = False, wait_time = 2, blow_out = False)
                 #m300.move_to(final_destinations[i].top(0))
                 #m300.air_gap(Elution.air_gap_vol_bottom) #air gap
             if recycle_tip == True:
@@ -1277,6 +1270,9 @@ def run(ctx: protocol_api.ProtocolContext):
     ctx.comment('###############################################')
     ctx.comment(' ')
     ctx.home()
+
+    # Disengage magnet
+    magdeck.disengage()
 ###############################################################################
     # Light flash end of program
     import os
