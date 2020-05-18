@@ -10,11 +10,11 @@ import csv
 
 # metadata
 metadata = {
-    'protocolName': 'Station A Template version',
+    'protocolName': 'Station A Template version for OMEGA type reactives',
     'author': 'Aitor Gastaminza, Alex Gasulla & José Luis Villanueva (Hospital Clinic Barcelona)',
     'source': 'Hospital Clínic Barcelona',
     'apiLevel': '2.0',
-    'description': 'Protocol for sample setup (A)'
+    'description': 'Protocol for sample setup (A) for OMEGA protocol'
 }
 
 '''
@@ -29,28 +29,34 @@ air_gap_vol_ci = 2
 air_gap_vol_sample = 5
 run_id = '$run_id'
 
-volume_control = 10 # Volume of control to be added to each well
-volume_sample = 300 # Sample volume to place in deepwell
-height_control = -20 # height from which control is dispensed referred to TOP
+TNA_VOLUME = 240 # TNA Volume to be added
+ISO_VOLUME = 280 # Isoproponaol volume to be added
+BEADS_VOLUME = 10 # Volume of beads to be added
+
+volume_control = TNA_VOLUME + ISO_VOLUME + BEADS_VOLUME # Volume of buffer to be added to each well
+volume_sample = 200 # Sample volume to place in deepwell
+height_control = 0.5 # height from which control is dispensed
 #temperature = 10
 x_offset = [0,0]
 
 #Screwcap variables
 diameter_sample = 8.25  # Diameter of the screwcap, it will change if samples come in 5ml tubes
-diameter_screwcap = 8.25  # Diameter of the screwcap holding the internal control or lysis buffer
 volume_cone = 50  # Volume in ul of the screwcap lower cone
 
+#falcon
+diameter_falcon = 27 # Diameter of the falcon containing the internal control or lysis buffer
+h_cone_falcon = 17.4
+
 # Calculated variables
-area_section_screwcap = (math.pi * diameter_screwcap**2) / 4 # Usually the internal control comes in a 2ml screwcap
 area_section_sample = (math.pi * diameter_sample**2) / 4 # It will change if samples come in 5ml tubes
-h_cone = (volume_cone * 3 / area_section_screwcap)
-screwcap_cross_section_area = math.pi * diameter_screwcap**2 / 4  # screwcap cross secion area, cross_section_area = 63.61
+falcon_cross_section_area = math.pi * diameter_falcon**2 / 4  # falcon cross secion area, cross_section_area = 63.61
+v_cone_falcon = 1/3*h_cone_falcon * falcon_cross_section_area
 
 def run(ctx: protocol_api.ProtocolContext):
     STEP = 0
     STEPS = {  # Dictionary with STEP activation, description and times
-        1: {'Execute': True, 'description': 'Add samples ('+str(volume_sample)+'ul)'},
-        2: {'Execute': True, 'description': 'Add internal control ('+str(volume_control)+'ul)'}
+        1: {'Execute': True, 'description': 'Add Lysis buffer ('+str(volume_control)+'ul)'},
+        2: {'Execute': True, 'description': 'Add samples ('+str(volume_sample)+'ul)'}
     }
     for s in STEPS:  # Create an empty wait_time
         if 'wait_time' not in STEPS[s]:
@@ -85,15 +91,15 @@ def run(ctx: protocol_api.ProtocolContext):
             self.vol_well_original = reagent_reservoir_volume / num_wells
 
     # Reagents and their characteristics
-    Control_I = Reagent(name = 'Internal Control',
+    BUFFER = Reagent(name = 'TNA+Beads+Isopropanol',
                      flow_rate_aspirate = 1,
                      flow_rate_dispense = 1,
                      rinse = False,
                      delay = 0,
-                     reagent_reservoir_volume = 10*NUM_SAMPLES*1.1,
+                     reagent_reservoir_volume = 50000,
                      num_wells = 1,
-                     h_cono = (volume_cone * 3 / area_section_screwcap),
-                     v_fondo = volume_cone
+                     h_cono = (v_cone_falcon * 3 / falcon_cross_section_area),
+                     v_fondo = v_cone_falcon
                      )
 
     Samples = Reagent(name = 'Samples',
@@ -107,7 +113,7 @@ def run(ctx: protocol_api.ProtocolContext):
                       v_fondo = 4 * area_section_sample*diameter_sample*0.5 / 3
                       )  # Sphere
 
-    Control_I.vol_well = Control_I.vol_well_original
+    BUFFER.vol_well = BUFFER.vol_well_original
     Samples.vol_well = 700
 
     ##################
@@ -221,8 +227,8 @@ def run(ctx: protocol_api.ProtocolContext):
 
     ####################################
     # load labware and modules
-
     ####################################
+
     # Load Sample racks
     if NUM_SAMPLES < 96:
         rack_num = math.ceil(NUM_SAMPLES / 24)
@@ -252,9 +258,8 @@ def run(ctx: protocol_api.ProtocolContext):
         #'opentrons_24_aluminumblock_generic_2ml_screwcap',
         #'cooled reagent tubes')
 
-    reagents = ctx.load_labware(
-            'opentrons_24_aluminumblock_generic_2ml_screwcap', '7',
-            'Bloque Aluminio opentrons 24 screwcaps 2000 µL')
+    reagents = ctx.load_labware('opentrons_6_tuberack_falcon_50ml_conical',
+                                     '7', 'Lysis buffer tuberack in Falcon tube')
 
     ####################################
     # Load tip_racks
@@ -266,7 +271,7 @@ def run(ctx: protocol_api.ProtocolContext):
 
     ################################################################################
     # Declare which reagents are in each reservoir as well as deepwell and elution plate
-    Control_I.reagent_reservoir = reagents.wells()[0]
+    BUFFER.reagent_reservoir = reagents.wells()[0]
 
     # setup samples and destinations
     sample_sources_full = generate_source_table(source_racks)
@@ -282,8 +287,43 @@ def run(ctx: protocol_api.ProtocolContext):
         'counts': {p20: 0, p1000: 0},
         'maxes': {p20: len(tips20)*96, p1000: len(tips1000)*96}
     }
+
     ############################################################################
-    # STEP 1: Add Samples
+    # STEP 1: Add TNA
+    ############################################################################
+    STEP += 1
+    if STEPS[STEP]['Execute'] == True:
+        ctx.comment('Step ' + str(STEP) + ': ' + STEPS[STEP]['description'])
+        ctx.comment('###############################################')
+
+        # Transfer parameters
+        start = datetime.now()
+        if not p1000.hw_pipette['has_tip']:
+            pick_up(p1000)
+        for d in destinations:
+            # Calculate pickup_height based on remaining volume and shape of container
+            [pickup_height, change_col] = calc_height(BUFFER, falcon_cross_section_area, volume_control)
+            move_vol_multichannel(p1000, reagent = BUFFER, source = BUFFER.reagent_reservoir,
+            dest = d, vol=volume_control, air_gap_vol = air_gap_vol_ci,
+            x_offset = x_offset, pickup_height = pickup_height, rinse = BUFFER.rinse,
+            disp_height = height_control, blow_out = True, touch_tip = True)
+
+            # Mix the sample AFTER dispensing using 15µl of volume
+            #custom_mix(p20, reagent = Control_I, location = d, vol = 15, rounds = 4, blow_out = True, mix_height = 15)
+
+            #Do not drop tip as it is not contaminated
+            #p1000.drop_tip()
+            #tip_track['counts'][p20]+=1
+
+        #Time statistics
+        end = datetime.now()
+        time_taken = (end - start)
+        ctx.comment('Step ' + str(STEP) + ': ' + STEPS[STEP]['description'] +
+        ' took ' + str(time_taken))
+        STEPS[STEP]['Time:'] = str(time_taken)
+
+    ############################################################################
+    # STEP 2: Add Samples
     ############################################################################
     STEP += 1
     if STEPS[STEP]['Execute'] == True:
@@ -295,12 +335,15 @@ def run(ctx: protocol_api.ProtocolContext):
         for s, d in zip(sample_sources, destinations):
             if not p1000.hw_pipette['has_tip']:
                 pick_up(p1000)
+
             # Mix the sample BEFORE dispensing
             #custom_mix(p1000, reagent = Samples, location = s, vol = volume_sample, rounds = 2, blow_out = True, mix_height = 15)
             move_vol_multichannel(p1000, reagent=Samples, source=s, dest=d,
             vol=volume_sample, air_gap_vol=air_gap_vol_sample, x_offset=x_offset,
                                pickup_height=1, rinse=Samples.rinse, disp_height=-10,
                                blow_out=True, touch_tip=True)
+            # Mix the sample AFTER dispensing using 15µl of volume
+            custom_mix(p1000, reagent = Samples, location = d, vol = 800, rounds = 2, blow_out = False, mix_height = 10)
 
             p1000.drop_tip()
             tip_track['counts'][p1000] += 1
@@ -312,39 +355,6 @@ def run(ctx: protocol_api.ProtocolContext):
                     ' took ' + str(time_taken))
         STEPS[STEP]['Time:'] = str(time_taken)
 
-    ############################################################################
-    # STEP 2: Add Internal Control
-    ############################################################################
-    STEP += 1
-    if STEPS[STEP]['Execute'] == True:
-        ctx.comment('Step ' + str(STEP) + ': ' + STEPS[STEP]['description'])
-        ctx.comment('###############################################')
-
-        # Transfer parameters
-        start = datetime.now()
-        if not p20.hw_pipette['has_tip']:
-            pick_up(p20)
-        for d in destinations:
-            # Calculate pickup_height based on remaining volume and shape of container
-            [pickup_height, change_col] = calc_height(Control_I, screwcap_cross_section_area, volume_control)
-            move_vol_multichannel(p20, reagent = Control_I, source = Control_I.reagent_reservoir,
-            dest = d, vol=volume_control, air_gap_vol = air_gap_vol_ci,
-            x_offset = x_offset, pickup_height = pickup_height, rinse = Control_I.rinse,
-            disp_height = height_control, blow_out = True, touch_tip = True)
-
-            # Mix the sample AFTER dispensing using 15µl of volume
-            #custom_mix(p20, reagent = Control_I, location = d, vol = 15, rounds = 4, blow_out = True, mix_height = 15)
-
-            #Drop tip and update counter
-            p20.drop_tip()
-            tip_track['counts'][p20]+=1
-
-        #Time statistics
-        end = datetime.now()
-        time_taken = (end - start)
-        ctx.comment('Step ' + str(STEP) + ': ' + STEPS[STEP]['description'] +
-        ' took ' + str(time_taken))
-        STEPS[STEP]['Time:'] = str(time_taken)
 
     # Export the time log to a tsv file
     if not ctx.is_simulating():
