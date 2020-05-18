@@ -91,6 +91,14 @@ tip_recycle = [ctx.load_labware('opentrons_96_tiprack_300ul', '5', '200µl filte
 pipette.pick_up_tip(tip_recycle[reagent.tip_recycling])
 pipette.return_tip()
 
+def divide_volume(volume,max_vol):
+    num_transfers=math.ceil(volume/max_vol)
+    vol_roundup=math.ceil(volume/num_transfers)
+    last_vol=vol-vol_roundup*(num_transfers-1)
+    vol_list=[v*vol_roundup for v in range(1,num_transfers)]
+    vol_list.append(last_vol)
+    return vol_list
+
 def move_vol_multichannel(pipet, reagent, source, dest, vol, air_gap_vol, x_offset,
                    pickup_height, rinse, disp_height, blow_out, touch_tip):
     '''
