@@ -30,12 +30,12 @@ air_gap_sample = 2
 
 # Tune variables
 volume_mmix = 20  # Volume of transfered master mix per well
-size_transfer = 7  # Number of wells the distribute function will fill
 volume_sample = 5  # Volume of the sample
 extra_dispensal = 5  # Extra volume for master mix in each distribute transfer
 diameter_screwcap = 8.25  # Diameter of the screwcap
 temperature = 25  # Temperature of temp module
 volume_cone = 50  # Volume in ul that fit in the screwcap cone
+pipette_allowed_capacity = 180 # Volume allowed in the pipette of 200µl
 x_offset = [0,0]
 
 #Available master mastermixes
@@ -45,6 +45,8 @@ mmix_selection = 1 # select the mastermix to be used
 
 MMIX_vol={1: [17,1], 2: [20,1], 3: [20,1], 4: [40,2]} # volume of mastermixes per sample and number of wells in which is distributed
 MMIX_recipe={1: [5, 5, 5, 2], 2: [8, 5, 1, 2, 2, 1, 1], 3: [12, 5, 1, 1, 1], 4: [1]} # Reactive volumes for the mmix
+
+size_transfer = math.floor(pipette_allowed_capacity / MMIX_vol[mmix_selection]) # Number of wells the distribute function will fill
 
 MMIX_make_location=8 # Cell C1 in which the first tube for the MMIX will be placed
 
