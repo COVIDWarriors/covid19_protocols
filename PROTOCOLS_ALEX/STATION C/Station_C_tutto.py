@@ -44,7 +44,7 @@ MMIX_available={1: 'Seegene', 2: 'Universal', 3: 'Universal_IDT',4: 'Clinic'}
 mmix_selection = 1 # select the mastermix to be used
 
 MMIX_vol={1: [17,1], 2: [20,1], 3: [20,1], 4: [40,2]} # volume of mastermixes per sample and number of wells in which is distributed
-MMIX_recipe={1: [5, 5, 5, 2], 2: [8, 5, 1, 2, 2, 1, 1], 3: [12, 5, 1, 1, 1], 4: [1]}
+MMIX_recipe={1: [5, 5, 5, 2], 2: [8, 5, 1, 2, 2, 1, 1], 3: [12, 5, 1, 1, 1], 4: [1]} # Reactive volumes for the mmix
 
 MMIX_make_location=8 # Cell C1 in which the first tube for the MMIX will be placed
 
