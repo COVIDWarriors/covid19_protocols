@@ -1,5 +1,13 @@
+{
+    'protocolName': 'Station C',
+    'author': 'Aitor Gastaminza, José Luis Villanueva (Hospital Clinic Barcelona) & Alex Gasulla',
+    'source': 'Hospital Clínic Barcelona',
+    'apiLevel': '2.0',
+    'description': 'Protocol for '
+    }
+
 #How to activate simulator
-#opentrons_simulate /Users/covid19warriors/Documents/covid19clinic/Station\ B/Station_B_S2_Aitor_JL_v1.py -L /Users/covid19warriors/Desktop/labware2
+#opentrons_simulate ~Station_B_S2_Aitor_JL_v1.py -L ~/labware2
 
 class Reagent:
     def __init__(self, name, flow_rate_aspirate, flow_rate_dispense, rinse,
@@ -94,8 +102,8 @@ pipette.return_tip()
 def divide_volume(volume,max_vol):
     num_transfers=math.ceil(volume/max_vol)
     vol_roundup=math.ceil(volume/num_transfers)
-    last_vol=vol-vol_roundup*(num_transfers-1)
-    vol_list=[v*vol_roundup for v in range(1,num_transfers)]
+    last_vol=volume-vol_roundup*(num_transfers-1)
+    vol_list=[vol_roundup for v in range(1,num_transfers)]
     vol_list.append(last_vol)
     return vol_list
 
