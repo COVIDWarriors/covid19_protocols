@@ -223,14 +223,14 @@ def run(ctx: protocol_api.ProtocolContext):
     def custom_mix(pipet, reagent, location, vol, rounds, blow_out, mix_height, offset):
         '''
         Function for mix in the same location a certain number of rounds. Blow out optional. Offset
-        can set to 0 or a value which indicates the lateral movement
+        can set to 0 or a higher/lower value which indicates the lateral movement
         '''
         if mix_height == 0:
-            mix_height = 2
+            mix_height = 1
         pipet.aspirate(1, location = location.bottom(z = mix_height), rate = reagent.flow_rate_aspirate_mix)
         for _ in range(rounds):
             pipet.aspirate(vol, location = location.bottom(z = mix_height), rate = reagent.flow_rate_aspirate_mix)
-            pipet.dispense(vol, location = location.bottom(z = mix_height + 5).move(Point(x = offset)), rate = reagent.flow_rate_dispense_mix)
+            pipet.dispense(vol, location = location.top(z = -5).move(Point(x = offset)), rate = reagent.flow_rate_dispense_mix)
         pipet.dispense(1, location = location.bottom(z = mix_height), rate = reagent.flow_rate_dispense_mix)
         if blow_out == True:
             pipet.blow_out(location.top(z = -2)) # Blow out
@@ -636,7 +636,7 @@ def run(ctx: protocol_api.ProtocolContext):
             vhb_transfer_vol.append(vhb_volume + VHB.disposal_volume)
         #vhb_volume = 166.66
         #vhb_wash_vol = [vhb_volume + VHB.disposal_volume, vhb_volume + VHB.disposal_volume, vhb_volume + VHB.disposal_volume]
-        x_offset_rs = 2
+        x_offset_rs = 2.5
         rinse = False # Not needed
 
         ########
@@ -794,7 +794,7 @@ def run(ctx: protocol_api.ProtocolContext):
             spr_transfer_vol.append(spr_volume + SPR.disposal_volume)
         #spr_volume = 166.66
         #spr_wash_vol = [spr_volume + SPR.disposal_volume, spr_volume + SPR.disposal_volume, spr_volume + SPR.disposal_volume]
-        x_offset_rs = 2
+        x_offset_rs = 2.5
         rinse = False # No rinse needed
 
         ########
@@ -952,7 +952,7 @@ def run(ctx: protocol_api.ProtocolContext):
             spr_transfer_vol.append(spr_volume + SPR.disposal_volume)
         #spr_volume = 166.66
         #spr_wash_vol = [spr_volume + SPR.disposal_volume, spr_volume + SPR.disposal_volume, spr_volume + SPR.disposal_volume]
-        x_offset_rs = 2
+        x_offset_rs = 2.5
         rinse = False #No rinse needed
         ########
         # spr washes
@@ -1130,7 +1130,7 @@ def run(ctx: protocol_api.ProtocolContext):
         for i in range(water_trips):
             water_wash_vol.append(water_volume + Elution.disposal_volume)
         #water_wash_vol = [50 + Water.disposal_volume]
-        x_offset_rs = 2
+        x_offset_rs = 2.5
 
         ########
         # Water or elution buffer
