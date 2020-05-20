@@ -55,4 +55,4 @@ Not last, thanks to the support to the whole team of COVIDWarriors, with special
 
 Disclaimer:
 
-IF NOT WORKING, PLEASE, REPLY BACK TO MARIA PARGA
+For research use only.
