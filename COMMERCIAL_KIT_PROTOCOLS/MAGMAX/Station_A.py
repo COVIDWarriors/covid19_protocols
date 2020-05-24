@@ -11,7 +11,9 @@ import csv
 # metadata
 metadata = {
     'protocolName': 'Station A Template version',
-    'author': 'Aitor Gastaminza, Alex Gasulla & José Luis Villanueva (Hospital Clinic Barcelona)',
+    'author': 'Aitor Gastaminza <gastaminza.aitor@gmail.com>, '
+    'José Luis Villanueva (Hospital Clinic Barcelona) '
+    '& Alex Gasulla <agasulla@gmail.com',
     'source': 'Hospital Clínic Barcelona',
     'apiLevel': '2.0',
     'description': 'Protocol for sample setup (A)'

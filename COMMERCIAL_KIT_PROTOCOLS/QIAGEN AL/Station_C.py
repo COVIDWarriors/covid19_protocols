@@ -12,7 +12,9 @@ import csv
 # metadata
 metadata = {
     'protocolName': 'Station C qPCR setup Version 2',
-    'author': 'Aitor Gastaminza, José Luis Villanueva (Hospital Clinic Barcelona) & Alex Gasulla',
+    'author': 'Aitor Gastaminza <gastaminza.aitor@gmail.com>, '
+    'José Luis Villanueva (Hospital Clinic Barcelona) '
+    '& Alex Gasulla <agasulla@gmail.com',
     'source': 'Hospital Clínic Barcelona',
     'apiLevel': '2.0',
     'description': 'Protocol for sample setup (C) prior to qPCR'

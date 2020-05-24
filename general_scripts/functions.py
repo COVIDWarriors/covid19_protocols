@@ -1,9 +1,11 @@
 {
     'protocolName': 'Station C',
-    'author': 'Aitor Gastaminza, José Luis Villanueva (Hospital Clinic Barcelona) & Alex Gasulla',
+    'author': 'Aitor Gastaminza <gastaminza.aitor@gmail.com>, '
+    'José Luis Villanueva (Hospital Clinic Barcelona) '
+    '& Alex Gasulla <agasulla@gmail.com',
     'source': 'Hospital Clínic Barcelona',
     'apiLevel': '2.0',
-    'description': 'Protocol for '
+    'description': 'Function and classes definitions'
     }
 
 #How to activate simulator

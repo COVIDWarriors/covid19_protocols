@@ -13,9 +13,11 @@ import csv
 # metadata
 metadata = {
     'protocolName': 'S2 Station B Version 4',
-    'author': 'Aitor Gastaminza & José Luis Villanueva & Alex Gasulla',
+    'author': 'Aitor Gastaminza <gastaminza.aitor@gmail.com>, '
+    'José Luis Villanueva (Hospital Clinic Barcelona) '
+    '& Alex Gasulla <agasulla@gmail.com',
     'source': 'Hospital Clínic Barcelona & HU Vall Hebrón',
-    'apiLevel': '2.1',
+    'apiLevel': '2.0',
     'description': 'Protocol for RNA extraction'
 }
 
