@@ -9,9 +9,8 @@ The following methodology prepared in this repository will take advantage of com
 The main contributors have developed some multipurpouse coding methodology which has been very useful to prepare the extraction protocols.
 
 --------------
-#Coding methodology
+# Coding methodology
 
-asdlfkasdlfalksdnjkansdkl
 
 - **Classes:** reactive classes have been proposed which include the pipetting characteristics and other parameters related to the labware in which they are placed.
 
