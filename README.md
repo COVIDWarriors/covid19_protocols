@@ -11,7 +11,6 @@ The main contributors have developed some multipurpouse coding methodology which
 --------------
 # Coding methodology
 
-
 - **Classes:** reactive classes have been proposed which include the pipetting characteristics and other parameters related to the labware in which they are placed.
 
 - **Functions:**
@@ -20,7 +19,7 @@ The main contributors have developed some multipurpouse coding methodology which
   - **Custom mix:** generates a multi pipetting function in one same well with the number of repetitions required.
   - **Move volume multichannel:** moves volumes of liquid from one source to a destination with upgraded parameters as a prior rinse to the aspiration, blows out at the end, pipette position (X,Y) dynamic modification and touch tip if requested.
   - **Distribute custom:** distributes a certain volume of reactive within multiple wells with air gap parameters and disposal selection.
-  - **Calculate height:** calculates the height from which the pipette must aspirate the reactive taking into account the remaining volume in the source well, by minimizing the tip wetting to avoid droplets. At the same time, if no volume is left in the tube, it will move its sourcing position to the next well defined as a source.
+  - **Calculate height:** calculates the height from which the pipette must aspirate the reactive taking into account the remaining volume in the source well as well as minimizing the tip wetting to avoid droplets. At the same time, if no volume is left in the tube, it will move its sourcing position to the next well defined as a source.
 
 - **General code structure:** coding has been structured as in the protocol diagrams by splitting in very concise steps, fed by the previously defined functions, and controlled by a dictionary type variable which will activate or deactivate the tasks, easing the debugging and fine tunning process of the robot.
 
@@ -38,11 +37,10 @@ One working unit is composed by 4 multidispensing robots divided in 3 different 
 --------------
 A truly sincere recognition for their time, support and contribution to:
 
-- Jose Luis Villanueva
-- Eva Gonzalez
+- José Luis Villanueva
+- Eva González
 - Joan Anton Puig
-
-And all the team of the CDB
+- And all the team of the CDB in Hospital Clinic Barcelona
 
 Not last, thanks to the support to the whole team of COVIDWarriors, with special thanks to:
 - Andreu Veà
@@ -51,6 +49,7 @@ Not last, thanks to the support to the whole team of COVIDWarriors, with special
 - Ramón Martínez
 - Aitor Gastaminza
 - Ernesto Sánchez
+- All members from other hospitals and research centres in Hospital La Paz, ISCII and HU Vall D'Hebron
 
 Disclaimer:
 
